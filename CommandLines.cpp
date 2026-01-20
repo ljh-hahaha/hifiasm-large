@@ -1046,3 +1046,126 @@ int CommandLine_process(int argc, char *argv[], hifiasm_opt_t* asm_opt)
 
     return check_option(asm_opt);
 }
+
+void print_opts(hifiasm_opt_t* asm_opt)
+{
+    fprintf(stderr, "[M::%s] hifiasm options and parameters:\n", __func__);
+    fprintf(stderr, "  General options:\n");
+    fprintf(stderr, "    flag: 0x%x\n", asm_opt->flag);
+    fprintf(stderr, "      HA_F_NO_HPC: %d\n", !!(asm_opt->flag & HA_F_NO_HPC));
+    fprintf(stderr, "      HA_F_NO_KMER_FLT: %d\n", !!(asm_opt->flag & HA_F_NO_KMER_FLT));
+    fprintf(stderr, "      HA_F_VERBOSE_GFA: %d\n", !!(asm_opt->flag & HA_F_VERBOSE_GFA));
+    fprintf(stderr, "      HA_F_WRITE_EC: %d\n", !!(asm_opt->flag & HA_F_WRITE_EC));
+    fprintf(stderr, "      HA_F_WRITE_PAF: %d\n", !!(asm_opt->flag & HA_F_WRITE_PAF));
+    fprintf(stderr, "      HA_F_SKIP_TRIOBIN: %d\n", !!(asm_opt->flag & HA_F_SKIP_TRIOBIN));
+    fprintf(stderr, "      HA_F_PURGE_CONTAIN: %d\n", !!(asm_opt->flag & HA_F_PURGE_CONTAIN));
+    fprintf(stderr, "      HA_F_PURGE_JOIN: %d\n", !!(asm_opt->flag & HA_F_PURGE_JOIN));
+    fprintf(stderr, "      HA_F_BAN_POST_JOIN: %d\n", !!(asm_opt->flag & HA_F_BAN_POST_JOIN));
+    fprintf(stderr, "      HA_F_BAN_ASSEMBLY: %d\n", !!(asm_opt->flag & HA_F_BAN_ASSEMBLY));
+    fprintf(stderr, "      HA_F_HIGH_HET: %d\n", !!(asm_opt->flag & HA_F_HIGH_HET));
+    fprintf(stderr, "      HA_F_PARTITION: %d\n", !!(asm_opt->flag & HA_F_PARTITION));
+    fprintf(stderr, "      HA_F_FAST: %d\n", !!(asm_opt->flag & HA_F_FAST));
+    fprintf(stderr, "      HA_F_USKEW: %d\n", !!(asm_opt->flag & HA_F_USKEW));
+    
+    fprintf(stderr, "    thread_num: %d\n", asm_opt->thread_num);
+    fprintf(stderr, "    num_reads: %d\n", asm_opt->num_reads);
+    fprintf(stderr, "    output_file_name: %s\n", asm_opt->output_file_name ? asm_opt->output_file_name : "NULL");
+    
+    fprintf(stderr, "  K-mer parameters:\n");
+    fprintf(stderr, "    k_mer_length: %d\n", asm_opt->k_mer_length);
+    fprintf(stderr, "    hic_mer_length: %d\n", asm_opt->hic_mer_length);
+    fprintf(stderr, "    ul_mer_length: %d\n", asm_opt->ul_mer_length);
+    fprintf(stderr, "    trans_mer_length: %d\n", asm_opt->trans_mer_length);
+    fprintf(stderr, "    mz_win: %d\n", asm_opt->mz_win);
+    fprintf(stderr, "    ul_mz_win: %d\n", asm_opt->ul_mz_win);
+    fprintf(stderr, "    trans_win: %d\n", asm_opt->trans_win);
+    fprintf(stderr, "    mz_rewin: %d\n", asm_opt->mz_rewin);
+    fprintf(stderr, "    ul_mz_rewin: %d\n", asm_opt->ul_mz_rewin);
+    fprintf(stderr, "    mz_sample_dist: %d\n", asm_opt->mz_sample_dist);
+    fprintf(stderr, "    bf_shift: %d\n", asm_opt->bf_shift);
+    fprintf(stderr, "    max_kmer_cnt: %d\n", asm_opt->max_kmer_cnt);
+    
+    fprintf(stderr, "  Coverage parameters:\n");
+    fprintf(stderr, "    high_factor: %.2f\n", asm_opt->high_factor);
+    fprintf(stderr, "    hom_cov: %d\n", asm_opt->hom_cov);
+    fprintf(stderr, "    het_cov: %d\n", asm_opt->het_cov);
+    fprintf(stderr, "    max_n_chain: %d\n", asm_opt->max_n_chain);
+    fprintf(stderr, "    coverage: %lld\n", asm_opt->coverage);
+    
+    fprintf(stderr, "  Error correction parameters:\n");
+    fprintf(stderr, "    max_ov_diff_ec: %.4f\n", asm_opt->max_ov_diff_ec);
+    fprintf(stderr, "    max_ov_diff_final: %.4f\n", asm_opt->max_ov_diff_final);
+    fprintf(stderr, "    number_of_round: %d\n", asm_opt->number_of_round);
+    fprintf(stderr, "    number_of_pround: %d\n", asm_opt->number_of_pround);
+    fprintf(stderr, "    adapterLen: %d\n", asm_opt->adapterLen);
+    fprintf(stderr, "    load_index_from_disk: %d\n", asm_opt->load_index_from_disk);
+    fprintf(stderr, "    write_index_to_disk: %d\n", asm_opt->write_index_to_disk);
+    
+    fprintf(stderr, "  Assembly parameters:\n");
+    fprintf(stderr, "    clean_round: %d\n", asm_opt->clean_round);
+    fprintf(stderr, "    small_pop_bubble_size: %lld\n", asm_opt->small_pop_bubble_size);
+    fprintf(stderr, "    large_pop_bubble_size: %lld\n", asm_opt->large_pop_bubble_size);
+    fprintf(stderr, "    min_drop_rate: %.2f\n", asm_opt->min_drop_rate);
+    fprintf(stderr, "    max_drop_rate: %.2f\n", asm_opt->max_drop_rate);
+    fprintf(stderr, "    max_hang_Len: %d\n", asm_opt->max_hang_Len);
+    fprintf(stderr, "    max_hang_rate: %.2f\n", asm_opt->max_hang_rate);
+    fprintf(stderr, "    gap_fuzz: %d\n", asm_opt->gap_fuzz);
+    fprintf(stderr, "    min_overlap_Len: %d\n", asm_opt->min_overlap_Len);
+    fprintf(stderr, "    min_overlap_coverage: %d\n", asm_opt->min_overlap_coverage);
+    fprintf(stderr, "    max_short_tip: %d\n", asm_opt->max_short_tip);
+    fprintf(stderr, "    max_short_ul_tip: %d\n", asm_opt->max_short_ul_tip);
+    fprintf(stderr, "    max_contig_tip: %d\n", asm_opt->max_contig_tip);
+    
+    fprintf(stderr, "  Purge-dups parameters:\n");
+    fprintf(stderr, "    purge_level_primary: %d\n", asm_opt->purge_level_primary);
+    fprintf(stderr, "    purge_level_trio: %d\n", asm_opt->purge_level_trio);
+    fprintf(stderr, "    purge_simi_rate_l2: %.2f\n", asm_opt->purge_simi_rate_l2);
+    fprintf(stderr, "    purge_simi_rate_l3: %.2f\n", asm_opt->purge_simi_rate_l3);
+    fprintf(stderr, "    purge_simi_thres: %.2f\n", asm_opt->purge_simi_thres);
+    fprintf(stderr, "    purge_overlap_len: %d\n", asm_opt->purge_overlap_len);
+    
+    fprintf(stderr, "  Trio binning parameters:\n");
+    fprintf(stderr, "    min_cnt: %d\n", asm_opt->min_cnt);
+    fprintf(stderr, "    mid_cnt: %d\n", asm_opt->mid_cnt);
+    fprintf(stderr, "    trio_flag_occ_thres: %d\n", asm_opt->trio_flag_occ_thres);
+    fprintf(stderr, "    polyploidy: %d\n", asm_opt->polyploidy);
+    
+    fprintf(stderr, "  Hi-C parameters:\n");
+    fprintf(stderr, "    seed: %lu\n", asm_opt->seed);
+    fprintf(stderr, "    n_perturb: %d\n", asm_opt->n_perturb);
+    fprintf(stderr, "    f_perturb: %.3f\n", asm_opt->f_perturb);
+    fprintf(stderr, "    n_weight: %d\n", asm_opt->n_weight);
+    fprintf(stderr, "    misjoin_len: %lu\n", asm_opt->misjoin_len);
+    fprintf(stderr, "    trans_base_rate: %.3f\n", asm_opt->trans_base_rate);
+    fprintf(stderr, "    trans_base_rate_sec: %.3f\n", asm_opt->trans_base_rate_sec);
+    
+    fprintf(stderr, "  Ultra-long parameters:\n");
+    fprintf(stderr, "    ul_error_rate: %.3f\n", asm_opt->ul_error_rate);
+    fprintf(stderr, "    ul_error_rate_low: %.3f\n", asm_opt->ul_error_rate_low);
+    fprintf(stderr, "    ul_error_rate_hpc: %.3f\n", asm_opt->ul_error_rate_hpc);
+    fprintf(stderr, "    ul_ec_round: %d\n", asm_opt->ul_ec_round);
+    fprintf(stderr, "    ul_clean_round: %d\n", asm_opt->ul_clean_round);
+    fprintf(stderr, "    ul_min_base: %u\n", asm_opt->ul_min_base);
+    fprintf(stderr, "    min_path_drop_rate: %.3f\n", asm_opt->min_path_drop_rate);
+    fprintf(stderr, "    max_path_drop_rate: %.3f\n", asm_opt->max_path_drop_rate);
+    
+    fprintf(stderr, "  Other parameters:\n");
+    fprintf(stderr, "    hg_size: %ld\n", asm_opt->hg_size);
+    fprintf(stderr, "    kpt_rate: %.3f\n", asm_opt->kpt_rate);
+    fprintf(stderr, "    bed_inconsist_rate: %d\n", asm_opt->bed_inconsist_rate);
+    fprintf(stderr, "    b_low_cov: %d\n", asm_opt->b_low_cov);
+    fprintf(stderr, "    b_high_cov: %d\n", asm_opt->b_high_cov);
+    fprintf(stderr, "    m_rate: %.3f\n", asm_opt->m_rate);
+    fprintf(stderr, "    is_ont: %lu\n", asm_opt->is_ont);
+    fprintf(stderr, "    is_sc: %lu\n", asm_opt->is_sc);
+    fprintf(stderr, "    rl_cut: %ld\n", asm_opt->rl_cut);
+    fprintf(stderr, "    sc_cut: %ld\n", asm_opt->sc_cut);
+    
+    fprintf(stderr, "  Telomere parameters:\n");
+    fprintf(stderr, "    telo_motif: %s\n", asm_opt->telo_motif ? asm_opt->telo_motif : "NULL");
+    fprintf(stderr, "    telo_pen: %ld\n", asm_opt->telo_pen);
+    fprintf(stderr, "    telo_drop: %ld\n", asm_opt->telo_drop);
+    fprintf(stderr, "    telo_mic_sc: %ld\n", asm_opt->telo_mic_sc);
+    
+    fprintf(stderr, "[M::%s] end of options\n", __func__);
+}
