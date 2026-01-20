@@ -113,6 +113,7 @@ double yak_realtime(void);
 long yak_peakrss(void);
 double yak_peakrss_in_gb(void);
 double yak_cpu_usage(void);
+double yak_current_rss(void);
 
 void ha_triobin(const hifiasm_opt_t *opt);
 uint32_t test_yak_binning(char* fn, char *cmd);

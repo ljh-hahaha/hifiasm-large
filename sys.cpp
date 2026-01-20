@@ -57,3 +57,37 @@ double yak_cpu_usage(void)
 {
 	return (yak_cputime() + 1e-9) / (yak_realtime() + 1e-9);
 }
+
+double yak_current_rss(void)
+{
+	long rss = 0;
+    
+#if defined(__linux__) || defined(__unix__)
+    // Linux/Unix系统使用/proc
+    FILE* fp = fopen("/proc/self/statm", "r");
+    if (fp != NULL) {
+        if (fscanf(fp, "%*d %ld", &rss) == 1) {
+            rss = rss * sysconf(_SC_PAGESIZE);
+        }
+        fclose(fp);
+    }
+#elif defined(__APPLE__) && defined(__MACH__)
+    // macOS可以使用task_info
+    struct task_basic_info t_info;
+    mach_msg_type_number_t t_info_count = TASK_BASIC_INFO_COUNT;
+    
+    if (task_info(mach_task_self(), TASK_BASIC_INFO,
+                  (task_info_t)&t_info, &t_info_count) == KERN_SUCCESS) {
+        rss = t_info.resident_size;
+    }
+#elif defined(_WIN32)
+    // Windows系统
+    PROCESS_MEMORY_COUNTERS pmc;
+    if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
+        rss = pmc.WorkingSetSize;
+    }
+#endif
+    
+    return rss/1073741824.0;
+	
+}
