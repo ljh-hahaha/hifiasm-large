@@ -1738,7 +1738,12 @@ int write_restart(void *flt_tab, ha_pt_t *ha_idx, All_reads* r, hifiasm_opt_t* o
 	write_All_reads(r, gfa_name);
 
 	sprintf(gfa_name, "restart.%s.pt_flt.paf.bin", file_name); 
-	fclose(fp); fp = fopen(gfa_name, "w"); uint64_t k;
+	fclose(fp); 
+	free(w_buff);
+
+	w_buff = (char*)malloc(buff_size);
+	setvbuf(fp, w_buff, _IOFBF, buff_size);
+	fp = fopen(gfa_name, "w"); uint64_t k;
 	if (!fp) {
 		free(gfa_name);
 		free(w_buff);
