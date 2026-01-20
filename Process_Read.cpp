@@ -72,12 +72,24 @@ void write_All_reads(All_reads* r, char* read_file_name)
     char* index_name = (char*)malloc(strlen(read_file_name)+15);
     sprintf(index_name, "%s.bin", read_file_name);
     FILE* fp = fopen(index_name, "w");
+
+	size_t buff_size = 64*1024*1024;
+	char* w_buff = (char*)malloc(buff_size);
+	setvbuf(fp, w_buff, _IOFBF, buff_size);
+
+	uint64_t write_count = 0;
 	fwrite(&asm_opt.adapterLen, sizeof(asm_opt.adapterLen), 1, fp);
+	write_count += sizeof(asm_opt.adapterLen);
     fwrite(&r->index_size, sizeof(r->index_size), 1, fp);
+	write_count += sizeof(r->index_size);
 	fwrite(&r->name_index_size, sizeof(r->name_index_size), 1, fp);
+	write_count += sizeof(r->name_index_size);
 	fwrite(&r->total_reads, sizeof(r->total_reads), 1, fp);
+	write_count += sizeof(r->total_reads);
 	fwrite(&r->total_reads_bases, sizeof(r->total_reads_bases), 1, fp);
+	write_count += sizeof(r->total_reads_bases);
 	fwrite(&r->total_name_length, sizeof(r->total_name_length), 1, fp);
+	write_count += sizeof(r->total_name_length);
 
 	uint64_t i = 0;
 	uint64_t zero = 0;
@@ -87,41 +99,55 @@ void write_All_reads(All_reads* r, char* read_file_name)
 		{
 			///number of Ns
 			fwrite(&r->N_site[i][0], sizeof(r->N_site[i][0]), 1, fp);
+			write_count += sizeof(r->N_site[i][0]);
 			if (r->N_site[i][0])
 			{
 				fwrite(r->N_site[i]+1, sizeof(r->N_site[i][0]), r->N_site[i][0], fp);
+				write_count += sizeof(r->N_site[i][0]) * r->N_site[i][0];
 			}
 		}
 		else
 		{
 			fwrite(&zero, sizeof(zero), 1, fp);
+			write_count += sizeof(zero);
 		}
 	}
 
 	fwrite(r->read_length, sizeof(uint64_t), r->total_reads, fp);
+	write_count += sizeof(uint64_t) * r->total_reads;
 	for (i = 0; i < r->total_reads; i++)
 	{
 		fwrite(r->read_sperate[i], sizeof(uint8_t), r->read_length[i]/4+1, fp);
+		write_count += sizeof(uint8_t) * (r->read_length[i]/4+1);
 	}
 	
 	fwrite(r->name, sizeof(char), r->total_name_length, fp);
+	write_count += sizeof(char) * r->total_name_length;
 	fwrite(r->name_index, sizeof(uint64_t), r->name_index_size, fp);
+	write_count += sizeof(uint64_t) * r->name_index_size;
 	fwrite(r->trio_flag, sizeof(uint8_t), r->total_reads, fp);
+	write_count += sizeof(uint8_t) * r->total_reads;
 	fwrite(&(asm_opt.hom_cov), sizeof(asm_opt.hom_cov), 1, fp);
+	write_count += sizeof(asm_opt.hom_cov);
 	fwrite(&(asm_opt.het_cov), sizeof(asm_opt.het_cov), 1, fp);
+	write_count += sizeof(asm_opt.het_cov);
 
 	uint64_t mm = 1;
 	if(asm_opt.is_sc) {
 		fwrite(&mm, sizeof(mm), 1, fp);
+		write_count += sizeof(mm);
 		for (i = 0; i < r->total_reads; i++) {
-			fwrite(r->rsc[i], sizeof(uint8_t), ((r->read_length[i]/sc_bn) + ((r->read_length[i]%sc_bn)?1:0)), fp);
+			uint64_t rsc_size = ((r->read_length[i]/sc_bn) + ((r->read_length[i]%sc_bn)?1:0));
+			fwrite(r->rsc[i], sizeof(uint8_t), rsc_size, fp);
+			write_count += sizeof(uint8_t) * rsc_size;
 		}
 	}
 
-    free(index_name);    
 	fflush(fp);
     fclose(fp);
-    fprintf(stderr, "Reads has been written.\n");
+	free(w_buff);
+    fprintf(stderr, "Reads has been written to %s. Total bytes written: %lu\n", index_name, write_count);
+	free(index_name);   
 }
 
 int load_All_reads(All_reads* r, char* read_file_name)

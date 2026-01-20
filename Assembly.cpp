@@ -996,9 +996,12 @@ void prt_dbg_rs(FILE *fp, Debug_reads* x, uint64_t round)
 void ha_ec(int64_t round, int num_pround, int des_idx, uint64_t *tot_b, uint64_t *tot_e)
 {
 	int hom_cov, het_cov, r_out = 0;
+    int dump_restart = 0;
     ha_flt_tab_hp = ha_idx_hp = NULL; (*tot_b) = (*tot_e) = 0;
 
     if((ha_idx == NULL)&&(asm_opt.flag & HA_F_VERBOSE_GFA)&&(round == asm_opt.number_of_round - 1)) r_out = 1;
+
+    if(ha_idx == NULL) dump_restart = 1;
 
     if(asm_opt.required_read_name) init_Debug_reads(&R_INF_FLAG, asm_opt.required_read_name); // for debugging only
     
@@ -1015,6 +1018,11 @@ void ha_ec(int64_t round, int num_pround, int des_idx, uint64_t *tot_b, uint64_t
 
     if (r_out) write_pt_index(ha_flt_tab, ha_idx, &R_INF, &asm_opt, asm_opt.output_file_name);
 
+    if (dump_restart) {
+        write_restart(ha_flt_tab, ha_idx, &R_INF, &asm_opt, asm_opt.output_file_name, round);
+        fprintf(stderr, "[M::%s::%.3f*%.2f@%.3fGB]: restart file written.\n", __func__,
+			yak_realtime(), yak_cpu_usage(), yak_current_rss());
+    }
     // Output_corrected_fastq();
 
 
@@ -2075,7 +2083,12 @@ int ha_assemble(void)
 	}
 	if (!ovlp_loaded) {
         ha_flt_tab = ha_idx = NULL;
-        if((asm_opt.flag & HA_F_VERBOSE_GFA)) load_pt_index(&ha_flt_tab, &ha_idx, &R_INF, &asm_opt, asm_opt.output_file_name), load_ct_index(&ha_ct_table, asm_opt.output_file_name);
+        
+        // disable this for restart.
+        //if((asm_opt.flag & HA_F_VERBOSE_GFA)) load_pt_index(&ha_flt_tab, &ha_idx, &R_INF, &asm_opt, asm_opt.output_file_name), load_ct_index(&ha_ct_table, asm_opt.output_file_name);
+
+        int64_t current_round = 0;
+        load_restart(&ha_flt_tab, &ha_idx, &R_INF, &asm_opt, asm_opt.output_file_name, &current_round);
 
 		// construct hash table for high occurrence k-mers
 		if (!(asm_opt.flag & HA_F_NO_KMER_FLT) && ha_flt_tab == NULL) 
@@ -2085,8 +2098,9 @@ int ha_assemble(void)
 		}
 		// error correction
 		assert(asm_opt.number_of_round > 0);
-		for (r = ha_idx?asm_opt.number_of_round-1:0; r < asm_opt.number_of_round; ++r) {
-			ha_opt_reset_to_round(&asm_opt, r); // this update asm_opt.roundID and a few other fields
+		//for (r = ha_idx?asm_opt.number_of_round-1:0; r < asm_opt.number_of_round; ++r) {
+		for (r = current_round; r < asm_opt.number_of_round; ++r) {
+            ha_opt_reset_to_round(&asm_opt, r); // this update asm_opt.roundID and a few other fields
             tot_b = tot_e = 0;
 			// ha_overlap_and_correct(r);
             ha_ec(r, asm_opt.number_of_pround, (r<asm_opt.number_of_round-1)?1:0, &tot_b, &tot_e);
