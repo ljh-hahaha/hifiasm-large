@@ -69,13 +69,13 @@ void destory_All_reads(All_reads* r)
 void write_All_reads(All_reads* r, char* read_file_name)
 {
     fprintf(stderr, "Writing reads to disk... \n");
-    char* index_name = (char*)malloc(strlen(read_file_name)+15);
+    char* index_name = (char*)malloc(strlen(read_file_name)+128);
     sprintf(index_name, "%s.bin", read_file_name);
-    FILE* fp = fopen(index_name, "w");
+    FILE* fp = fopen(index_name, "wb");
 
 	size_t buff_size = 64*1024*1024;
-	char* w_buff = (char*)malloc(buff_size);
-	setvbuf(fp, w_buff, _IOFBF, buff_size);
+	//char* w_buff = (char*)malloc(buff_size);
+	setvbuf(fp, NULL, _IOFBF, buff_size);
 
 	uint64_t write_count = 0;
 	fwrite(&asm_opt.adapterLen, sizeof(asm_opt.adapterLen), 1, fp);
@@ -145,7 +145,7 @@ void write_All_reads(All_reads* r, char* read_file_name)
 
 	fflush(fp);
     fclose(fp);
-	free(w_buff);
+	//free(w_buff);
     fprintf(stderr, "Reads has been written to %s. Total bytes written: %lu\n", index_name, write_count);
 	free(index_name);   
 }
@@ -154,11 +154,15 @@ int load_All_reads(All_reads* r, char* read_file_name)
 {
     char* index_name = (char*)malloc(strlen(read_file_name)+15);
     sprintf(index_name, "%s.bin", read_file_name);
-    FILE* fp = fopen(index_name, "r");
+    FILE* fp = fopen(index_name, "rb");
 	if (!fp) {
 		free(index_name);
         return 0;
     }
+
+	size_t buff_size = 64*1024*1024;
+	setvbuf(fp, NULL, _IOFBF, buff_size);
+
 	int local_adapterLen;
 	int f_flag;
     f_flag = fread(&local_adapterLen, sizeof(local_adapterLen), 1, fp);

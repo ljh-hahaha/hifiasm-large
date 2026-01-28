@@ -17,6 +17,20 @@
 #define RES_K 19
 #define RES_W 19
 
+#define ESTIMATE_TIME
+
+#ifdef ESTIMATE_TIME
+#include <iostream>
+#include <chrono>
+#include <unordered_set>
+//std::chrono::microseconds durations[6];
+double durations[6];
+double d_max[6];
+uint64_t d_counter;
+uint64_t olist_length, clist_length;
+uint64_t g_o_reads, g_c_reads;
+#endif
+
 KDQ_INIT(uint32_t)
 
 typedef struct {
@@ -3230,6 +3244,47 @@ uint32_t is_chemical_r_qual(overlap_region_alloc *ov, asg64_v *idx, int64_t len,
     return 0;
 }
 
+#ifdef ESTIMATE_TIME
+void count_olist_clist_reads_simple(
+    const overlap_region_alloc* ol,
+    const Candidates_list* cl,
+    const uint32_t query_id,
+    uint32_t* o_reads,
+    uint32_t* c_reads
+) {
+    if (!ol || !cl) {
+        *o_reads = 0;
+        *c_reads = 0;
+        return;
+    }
+    
+    std::unordered_set<uint32_t> olist_reads;
+    std::unordered_set<uint32_t> clist_reads;
+    
+    // 统计clist
+    for (long long i = 0; i < cl->length; i++) {
+        uint32_t read_id = cl->list[i].readID;
+        if (read_id != query_id) {
+            clist_reads.insert(read_id);
+        }
+    }
+    
+    // 统计olist
+    for (uint64_t i = 0; i < ol->length; i++) {
+        const overlap_region& ov = ol->list[i];
+        uint32_t read_id = ov.y_id;
+        if (read_id != query_id) {
+            olist_reads.insert(read_id);
+        }
+    }
+    
+    *o_reads = olist_reads.size();
+    *c_reads = clist_reads.size();
+
+    return;
+}
+
+#endif
 
 static void worker_hap_ec(void *data, long i, int tid)
 {
@@ -3271,8 +3326,25 @@ static void worker_hap_ec(void *data, long i, int tid)
 
     recover_UC_Read(&b->self_read, &R_INF, i); qlen = b->self_read.length; 
 
+#ifdef ESTIMATE_TIME
+    auto start = std::chrono::high_resolution_clock::now();
+#endif
     h_ec_lchain(b->ab, i, b->self_read.seq, b->self_read.length, asm_opt.mz_win, asm_opt.k_mer_length, &R_INF, &b->olist, &b->clist, ((asm_opt.is_ont)?(0.05):(0.02)), asm_opt.max_n_chain, 1, NULL, NULL, &(b->sp), &high_occ, &low_occ, 1, 1, 3, 0.7, 2, 32, COV_W);///ONT high error
-
+#ifdef ESTIMATE_TIME
+    auto end = std::chrono::high_resolution_clock::now();
+    if(tid==0) {
+        auto d = std::chrono::duration_cast<std::chrono::microseconds>(end - start); 
+        double dt = d.count()/1000000.0;
+        durations[0] += dt;
+        if(dt > d_max[0]) d_max[0] = dt;
+        olist_length += b->olist.length;
+        clist_length += b->clist.length;
+        uint32_t l_o_reads, l_c_reads;
+        count_olist_clist_reads_simple(&b->olist, &b->clist, i, &l_o_reads, &l_c_reads);
+        g_o_reads += l_o_reads;
+        g_c_reads += l_c_reads;
+    }
+#endif
     // b->num_read_base += b->olist.length;
     b->cnt[0] += b->self_read.length;
 
@@ -3286,6 +3358,15 @@ static void worker_hap_ec(void *data, long i, int tid)
     // if((asm_opt.is_ont) && (b->olist.length)) get_mz1(qu->seq, qu->length, RES_W, RES_K, 0, !(asm_opt.flag & HA_F_NO_HPC), b->ab, NULL, NULL, asm_opt.mz_sample_dist, NULL, NULL, NULL, -1, asm_opt.dp_min_len, -1, &(b->sp), asm_opt.mz_rewin, 0, NULL, 0);
 
     gen_hc_r_alin_ea(&b->olist, &b->clist, &R_INF, &b->self_read, &b->ovlp_read, &b->exz, aux_o, asm_opt.max_ov_diff_ec, (asm_opt.is_ont)?(WINDOW_OHC):(WINDOW_HC), i, E_KHIT/**asm_opt.k_mer_length**/, 1, &b->v16, &b->v64, &(R_INF.paf[i]), asm_opt.is_ont, (asm_opt.is_ont)?(0.006):(-1), (asm_opt.is_ont)?(64):(-1));
+#ifdef ESTIMATE_TIME
+    end = std::chrono::high_resolution_clock::now();
+    if(tid==0) {
+        auto d = std::chrono::duration_cast<std::chrono::microseconds>(end - start); 
+        double dt = d.count()/1000000.0;
+        durations[1] += dt;
+        if(dt > d_max[1]) d_max[1] = dt;
+    }
+#endif
     ///for debug indel
     // prt_ovlp_sam(&b->olist, &b->ovlp_read, b->self_read.seq, b->self_read.length);
 
@@ -3302,13 +3383,29 @@ static void worker_hap_ec(void *data, long i, int tid)
     copy_asg_arr(b->sp, buf0);
     ///for debug indel
     // stderr_phase_ovlp(&b->olist);
-
+#ifdef ESTIMATE_TIME
+    end = std::chrono::high_resolution_clock::now();
+    if(tid==0) {
+        auto d = std::chrono::duration_cast<std::chrono::microseconds>(end - start); 
+        double dt = d.count()/1000000.0;
+        durations[2] += dt;
+        if(dt > d_max[2]) d_max[2] = dt;
+    }
+#endif
     dedup_chains(&b->olist);
 
     copy_asg_arr(buf0, b->sp);
     b->cnt[1] += wcns_gen(&b->olist, &R_INF, &b->self_read, &b->ovlp_read, &b->exz, &b->pidx, &b->v64, &buf0, 0, 512, b->self_read.length, 3, 0.500001, aux_o, &b->v32, &b->cns, 256, i);
     copy_asg_arr(b->sp, buf0);
-
+#ifdef ESTIMATE_TIME
+    end = std::chrono::high_resolution_clock::now();
+    if(tid==0) {
+        auto d = std::chrono::duration_cast<std::chrono::microseconds>(end - start); 
+        double dt = d.count()/1000000.0;
+        durations[3] += dt;
+        if(dt > d_max[3]) d_max[3] = dt;
+    }
+#endif
     push_nec_re(aux_o, &(scc.a[i]));
     push_nec_re(aux_o, &(scb.a[i]));
 
@@ -3320,7 +3417,15 @@ static void worker_hap_ec(void *data, long i, int tid)
     push_ne_ovlp(&(R_INF.paf[i]), &b->olist, 1, &R_INF, &(scc.a[i])/**, i, &b->self_read, &b->ovlp_read**/);
     push_ne_ovlp(&(R_INF.reverse_paf[i]), &b->olist, 2, &R_INF, NULL/**, i, NULL, NULL**/);
 
-
+#ifdef ESTIMATE_TIME
+    end = std::chrono::high_resolution_clock::now();
+    if(tid==0) {
+        auto d = std::chrono::duration_cast<std::chrono::microseconds>(end - start); 
+        double dt = d.count()/1000000.0;
+        durations[4] += dt;
+        if(dt > d_max[4]) d_max[4] = dt;
+    }
+#endif
     check_well_cal(&(scc.a[i]), &b->v64, &(R_INF.paf[i].is_fully_corrected), &(R_INF.paf[i].is_abnormal), qlen, (MIN_COVERAGE_THRESHOLD*2), &(R_INF.paf[i]));
     R_INF.trio_flag[i] = AMBIGU;
 
@@ -3390,7 +3495,21 @@ static void worker_hap_ec(void *data, long i, int tid)
     **/
     // exit(1);
     refresh_ec_ovec_buf_t0(b, REFRESH_N);
+#ifdef ESTIMATE_TIME
+    end = std::chrono::high_resolution_clock::now();
+    if(tid==0) {
+        auto d = std::chrono::duration_cast<std::chrono::microseconds>(end - start); 
+        double dt = d.count()/1000000.0;
+        durations[5] += dt;
+        if(dt > d_max[5]) d_max[5] = dt;
+        d_counter+=1;
+    }
+    if(d_counter%1000==0 && tid==0){
+        std::cout << "d_counter = " << d_counter << ", " << olist_length << ", " << clist_length << ", " << g_o_reads << ", " << g_c_reads << std::endl;
+        for(int i=0;i<6;i++) std::cout << i << " costs: " << durations[i] << ", max: " << d_max[i] << std::endl;
+    }
 
+#endif
     /**
     fprintf(stderr, "%ld\t---\n", i);
     **/
@@ -6073,10 +6192,24 @@ uint64_t cal_ec_multiple(ec_ovec_buf_t *b, uint64_t n_thre, uint64_t n_a, uint64
         scb.n = scb.m = n_a; CALLOC(scb.a, n_a);
     }
 
+#ifdef ESTIMATE_TIME
+    for(int i=0;i<6;i++) {durations[i] = 0.0;d_max[i] = 0.0;}//std::chrono::milliseconds(0);
+    d_counter = 0;
+    olist_length = 0;
+    clist_length = 0;
+    g_o_reads = 0;
+    g_c_reads = 0;
+#endif
     for (k = 0; k < n_thre; ++k) b->a[k].cnt[0] = b->a[k].cnt[1] = 0;
 
     kt_for(n_thre, worker_hap_ec, b, n_a);///debug_for_fix
 
+#ifdef ESTIMATE_TIME
+    std::cout << "\nNumber of reads processed by thread 0 is " 
+    << d_counter << ", " << olist_length*1.0/d_counter << ", " << clist_length*1.0/d_counter << ", " 
+    << g_o_reads*1.0/d_counter << ", " << g_c_reads*1.0/d_counter << std::endl;
+    for(int i=0;i<6;i++) std::cout << "Part " << i << " : " << durations[i] << ", max: " << d_max[i] << std::endl;
+#endif
     for (k = 0; k < n_thre; ++k) {
         num_base += b->a[k].cnt[0];
         num_correct += b->a[k].cnt[1];
@@ -6276,7 +6409,12 @@ void cal_ec_r(uint64_t n_thre, uint64_t round, uint64_t n_round, uint64_t n_a, u
 
 
     b = gen_ec_ovec_buf_t(n_thre);
+    fprintf(stderr, "[M::%s::%.3f*%.2f@%.3fGB] ==> calling cal_ec_multiple()\n", __func__,
+			yak_realtime(), yak_cpu_usage(), yak_current_rss());
     (*tot_e) += cal_ec_multiple(b, n_thre, n_a, tot_b); ///exit(1);
+    fprintf(stderr, "[M::%s::%.3f*%.2f@%.3fGB] ==> cal_ec_multiple() finish.\n", __func__,
+			yak_realtime(), yak_cpu_usage(), yak_current_rss());
+
     sl_ec_r(n_thre, n_a);
 
     for (k = 0; k < n_round; k++) {
